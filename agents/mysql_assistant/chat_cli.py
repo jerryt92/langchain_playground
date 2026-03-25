@@ -1,9 +1,9 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional
 
-from agents.mysql_assistant.mysql_assistant import MySQLAssistant
+from agents.mysql_assistant.mysql_ops import MySQLConnectionConfig, MySQLOps
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
@@ -11,7 +11,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from lib.env_loader import load_env_config
 from mysql_assistant import MySQLAssistant
-from mysql_ops import MySQLOps, normalize_mysql_uri
+import mysql_ops
+from tools import build_tools
 
 AGENT_DIR = Path(__file__).resolve().parent
 
@@ -30,24 +31,36 @@ def _parse_csv(value: Optional[str]) -> list[str]:
 
 def build_assistant() -> MySQLAssistant:
     env = load_env_config(PROJECT_ROOT, AGENT_DIR)
-
-    mysql_uri = normalize_mysql_uri(env.get("MYSQL_URI", ""), env)
     openai_api_key = env.get("OPENAI_API_KEY", "").strip()
     openai_base_url = env.get("OPENAI_BASE_URL", "").strip() or None
     openai_model = env.get("OPENAI_MODEL", "gpt-4o-mini").strip()
     allow_write = _parse_bool(env.get("ALLOW_WRITE"), default=False)
     include_tables = _parse_csv(env.get("INCLUDE_TABLES"))
     print_model_output = _parse_bool(env.get("PRINT_MODEL_OUTPUT"), default=False)
-
+    # charset = _get_first_query_value(query_params, "charset") or "utf8mb4"
+    # connect_timeout = int(_get_first_query_value(query_params, "connect_timeout") or 10)
+    # read_timeout = _parse_optional_int(_get_first_query_value(query_params, "read_timeout"))
+    # write_timeout = _parse_optional_int(_get_first_query_value(query_params, "write_timeout"))
+    mysql_connection_config = MySQLConnectionConfig(
+        host=env.get("MYSQL_HOST", "127.0.0.1"),
+        port=int(env.get("MYSQL_PORT", "3306")),
+        user=env.get("MYSQL_USER", "root"),
+        password=env.get("MYSQL_PASSWORD", ""),
+        database=env.get("MYSQL_DATABASE", None),
+        charset=env.get("MYSQL_CHARSET", "utf8mb4"),
+        connect_timeout=int(env.get("MYSQL_CONNECT_TIMEOUT", "30")),
+        read_timeout=int(env.get("MYSQL_READ_TIMEOUT", "30")),
+        write_timeout=int(env.get("MYSQL_WRITE_TIMEOUT", "30"))
+    )
     if not openai_api_key:
         raise ValueError("缺少环境变量 OPENAI_API_KEY。请在项目根目录 .env 中配置模型密钥。")
-    mysql_ops = MySQLOps(
-        mysql_uri=mysql_uri,
+    mysql_ops.ops = MySQLOps(
+        mysql_connection_config=mysql_connection_config,
         allow_write=allow_write,
         include_tables=include_tables,
     )
     return MySQLAssistant(
-        mysql_ops=mysql_ops,
+        tools=build_tools(),
         openai_model=openai_model,
         openai_api_key=openai_api_key,
         openai_base_url=openai_base_url,

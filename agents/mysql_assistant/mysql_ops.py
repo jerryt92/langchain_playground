@@ -1,8 +1,7 @@
 import json
 import re
 from dataclasses import dataclass
-from typing import Any, Mapping, Optional
-from urllib.parse import parse_qs, quote_plus, unquote, urlparse
+from typing import Any, Optional
 
 import pymysql
 
@@ -15,7 +14,7 @@ DEFAULT_MAX_RESULT_ROWS = 200
 
 
 @dataclass
-class ConnectionConfig:
+class MySQLConnectionConfig:
     host: str
     port: int
     user: str
@@ -58,89 +57,6 @@ def _clean_identifier(identifier: str) -> str:
     if not text:
         raise ValueError("标识符不能为空。")
     return text
-
-
-def build_mysql_uri_from_env(env: Mapping[str, str]) -> str:
-    """兼容使用 MYSQL_HOST/MYSQL_PORT/MYSQL_USER 等分字段配置连接信息。"""
-    host = _strip_wrapping_quotes(env.get("MYSQL_HOST")) or "127.0.0.1"
-    port = _strip_wrapping_quotes(env.get("MYSQL_PORT")) or "3306"
-    user = _strip_wrapping_quotes(env.get("MYSQL_USER"))
-    password = _strip_wrapping_quotes(env.get("MYSQL_PASSWORD")) or ""
-    database = _strip_wrapping_quotes(env.get("MYSQL_DATABASE")) or ""
-
-    if not user:
-        raise ValueError(
-            "缺少环境变量 MYSQL_URI，且未提供 MYSQL_USER。"
-            "请配置 MYSQL_URI，或使用 MYSQL_HOST/MYSQL_PORT/MYSQL_USER/MYSQL_PASSWORD。"
-        )
-
-    user_enc = quote_plus(user)
-    pwd_enc = quote_plus(password)
-    db_path = f"/{quote_plus(database)}" if database else ""
-    return f"mysql+pymysql://{user_enc}:{pwd_enc}@{host}:{port}{db_path}"
-
-
-def normalize_mysql_uri(raw_uri: str, env: Mapping[str, str]) -> str:
-    """把多种 MySQL 连接串规范成 pymysql 可直接消费的 URI。"""
-    uri = raw_uri.strip()
-    if not uri:
-        return build_mysql_uri_from_env(env)
-
-    if uri.startswith("mysql+pymysql://"):
-        return uri
-
-    if uri.startswith("mysql://"):
-        return "mysql+pymysql://" + uri[len("mysql://") :]
-
-    if uri.startswith("jdbc:mysql://"):
-        jdbc_uri = uri[len("jdbc:") :]
-        parsed = urlparse(jdbc_uri)
-
-        user = _strip_wrapping_quotes(env.get("MYSQL_USER"))
-        password = _strip_wrapping_quotes(env.get("MYSQL_PASSWORD")) or ""
-        if not user:
-            raise ValueError("使用 JDBC URL 时需要设置 MYSQL_USER。")
-
-        db_name = parsed.path.lstrip("/") or _strip_wrapping_quotes(env.get("MYSQL_DATABASE")) or ""
-        host = parsed.hostname or "127.0.0.1"
-        port = parsed.port or 3306
-        path = f"/{db_name}" if db_name else ""
-        query = f"?{parsed.query}" if parsed.query else ""
-        user_enc = quote_plus(user)
-        pwd_enc = quote_plus(password)
-        return f"mysql+pymysql://{user_enc}:{pwd_enc}@{host}:{port}{path}{query}"
-
-    raise ValueError(
-        "MYSQL_URI 格式不支持。请使用 mysql+pymysql://...、mysql://... 或 jdbc:mysql://..."
-    )
-
-
-def parse_connection_config(mysql_uri: str) -> ConnectionConfig:
-    """把 URI 拆成直接连接 pymysql 所需的参数。"""
-    parsed = urlparse(mysql_uri)
-    if parsed.scheme != "mysql+pymysql":
-        raise ValueError("MYSQL_URI 必须使用 mysql+pymysql:// 协议。")
-
-    if not parsed.username:
-        raise ValueError("MYSQL_URI 缺少用户名。")
-
-    query_params = parse_qs(parsed.query, keep_blank_values=True)
-    charset = _get_first_query_value(query_params, "charset") or "utf8mb4"
-    connect_timeout = int(_get_first_query_value(query_params, "connect_timeout") or 10)
-    read_timeout = _parse_optional_int(_get_first_query_value(query_params, "read_timeout"))
-    write_timeout = _parse_optional_int(_get_first_query_value(query_params, "write_timeout"))
-
-    return ConnectionConfig(
-        host=parsed.hostname or "127.0.0.1",
-        port=parsed.port or 3306,
-        user=unquote(parsed.username),
-        password=unquote(parsed.password or ""),
-        database=parsed.path.lstrip("/") or None,
-        charset=charset,
-        connect_timeout=connect_timeout,
-        read_timeout=read_timeout,
-        write_timeout=write_timeout,
-    )
 
 
 def normalize_sql(raw_sql: str) -> str:
@@ -194,33 +110,33 @@ def serialize_tool_result(result: dict[str, Any]) -> str:
 class MySQLOps:
     """封装 MySQL 连接、元数据探索和 SQL 执行策略。"""
 
-    def __init__(self, mysql_uri: str, allow_write: bool = False, include_tables: Optional[list[str]] = None):
-        self.mysql_uri = mysql_uri
+    def __init__(self, mysql_connection_config: MySQLConnectionConfig, allow_write: bool = False,
+                 include_tables: Optional[list[str]] = None):
+        self.mysql_connection_config = mysql_connection_config
         self.allow_write = allow_write
         self.include_tables = include_tables or []
-        self.connection_config = parse_connection_config(mysql_uri)
 
     def _connect(self, database: Optional[str] = None) -> pymysql.connections.Connection:
         """默认不选库连接，避免运行时依赖 USE db 的会话状态。"""
         return pymysql.connect(
-            host=self.connection_config.host,
-            port=self.connection_config.port,
-            user=self.connection_config.user,
-            password=self.connection_config.password,
+            host=self.mysql_connection_config.host,
+            port=self.mysql_connection_config.port,
+            user=self.mysql_connection_config.user,
+            password=self.mysql_connection_config.password,
             database=database,
-            charset=self.connection_config.charset,
-            connect_timeout=self.connection_config.connect_timeout,
-            read_timeout=self.connection_config.read_timeout,
-            write_timeout=self.connection_config.write_timeout,
+            charset=self.mysql_connection_config.charset,
+            connect_timeout=self.mysql_connection_config.connect_timeout,
+            read_timeout=self.mysql_connection_config.read_timeout,
+            write_timeout=self.mysql_connection_config.write_timeout,
             cursorclass=pymysql.cursors.DictCursor,
             autocommit=True,
         )
 
     def _fetch_all(
-        self,
-        sql: str,
-        params: Optional[tuple[Any, ...]] = None,
-        database: Optional[str] = None,
+            self,
+            sql: str,
+            params: Optional[tuple[Any, ...]] = None,
+            database: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         connection = self._connect(database=database)
         try:
@@ -303,17 +219,17 @@ class MySQLOps:
 
         rows = self._fetch_all(
             """
-            SELECT
-                column_name,
-                data_type,
-                column_type,
-                is_nullable,
-                column_key,
-                column_default,
-                extra,
-                column_comment
+            SELECT column_name,
+                   data_type,
+                   column_type,
+                   is_nullable,
+                   column_key,
+                   column_default,
+                   extra,
+                   column_comment
             FROM information_schema.columns
-            WHERE table_schema = %s AND table_name = %s
+            WHERE table_schema = %s
+              AND table_name = %s
             ORDER BY ordinal_position
             """,
             params=(database_name, table_name),
@@ -325,3 +241,5 @@ class MySQLOps:
             "table_name": table_name,
             "columns": rows,
         }
+
+ops: MySQLOps

@@ -2,11 +2,10 @@ import json
 from typing import Any, Optional
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import SecretStr
 
-from mysql_ops import MySQLOps
+import mysql_ops
 
 # 最大允许 tool-use 轮数
 MAX_TOOL_ROUNDS = 12
@@ -17,17 +16,16 @@ class MySQLAssistant:
 
     def __init__(
             self,
-            mysql_ops: MySQLOps,
+            tools: list[Any],
             openai_model: str,
             openai_api_key: str,
             openai_base_url: Optional[str] = None,
             print_model_output: bool = False,
     ):
-        self.mysql_ops = mysql_ops
         self.print_model_output = print_model_output
         self.history: list[BaseMessage] = []
         self.system_message = SystemMessage(content=self.build_system_prompt())
-        self.tools = self._build_tools()
+        self.tools = tools
         self.tools_by_name = {tool_.name: tool_ for tool_ in self.tools}
         self.llm = ChatOpenAI(
             model=openai_model,
@@ -40,7 +38,7 @@ class MySQLAssistant:
     def build_system_prompt(self) -> str:
         mode_text = (
             "当前允许写操作，但每次调用 run_sql 仍然只能执行一条 SQL。"
-            if self.mysql_ops.allow_write
+            if mysql_ops.ops.allow_write
             else "当前是只读模式，run_sql 只允许执行单条 SELECT 或 WITH 查询。"
         )
         lines = [
@@ -54,49 +52,12 @@ class MySQLAssistant:
             f"5. {mode_text}",
             "6. 最终答复使用中文，简洁说明结论；如果执行了 SQL，请附上关键 SQL 或结果摘要。",
         ]
-        if self.mysql_ops.connection_config.database:
-            lines.append(
-                f"连接串里带了默认库 `{self.mysql_ops.connection_config.database}`，但不要依赖会话默认库。"
-            )
-        if self.mysql_ops.include_tables:
+        if mysql_ops.ops.include_tables:
             lines.append(
                 "当前启用了 INCLUDE_TABLES 过滤，仅这些表允许访问："
-                + ", ".join(self.mysql_ops.include_tables)
+                + ", ".join(mysql_ops.ops.include_tables)
             )
         return "\n".join(lines)
-
-    def _build_tools(self) -> list[Any]:
-        @tool("list_databases")
-        def list_databases_tool() -> str:
-            """列出当前 MySQL 实例中可见的业务数据库名称。"""
-            return json.dumps(self.mysql_ops.list_databases(), ensure_ascii=False, indent=2)
-
-        @tool("list_tables")
-        def list_tables_tool(database_name: str) -> str:
-            """列出指定数据库里的表和表类型。"""
-            return json.dumps(self.mysql_ops.list_tables(database_name), ensure_ascii=False, indent=2)
-
-        # 使用pydantic提供的BaseModel、Field来描述参数，@tool()注解会识别
-        class _GetTableSchemaToolArgs(BaseModel):
-            database_name: str = Field(..., description="数据库名称")
-            table_name: str = Field(..., description="表名称")
-
-        @tool("get_table_schema", args_schema=_GetTableSchemaToolArgs)
-        def get_table_schema_tool(database_name: str, table_name: str) -> str:
-            """查看指定表的字段结构。"""
-            return json.dumps(
-                self.mysql_ops.get_table_schema(database_name, table_name),
-                ensure_ascii=False,
-                indent=2,
-                default=str,
-            )
-
-        @tool("run_sql")
-        def run_sql(sql: str) -> str:
-            """执行一条 SQL 并返回结果。只读模式下仅允许 SELECT/WITH。"""
-            return self.mysql_ops.run_sql(sql)
-
-        return [list_databases_tool, list_tables_tool, get_table_schema_tool, run_sql]
 
     def _invoke_tool_call(self, tool_call: dict[str, Any]) -> ToolMessage:
         tool_name = tool_call["name"]
