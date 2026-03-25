@@ -70,6 +70,9 @@ def build_assistant() -> MySQLAssistant:
             base_url=openai_base_url,
             temperature=0.3,
             max_tokens=32768,
+            extra_body={
+                "enable_thinking": True
+            }
         ),
         print_model_output=print_model_output
     )
