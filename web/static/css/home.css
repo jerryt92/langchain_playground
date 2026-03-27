@@ -64,27 +64,9 @@
   padding: 20px;
 }
 
-.env-panel {
+.env-panel-stack {
   display: grid;
   gap: 12px;
-}
-
-.env-block {
-  border: 1px solid var(--panel-border);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.env-block-summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  user-select: none;
-}
-
-.env-block-body {
-  padding: 0 14px 14px;
 }
 
 @media (max-width: 1080px) {
