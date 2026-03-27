@@ -223,7 +223,20 @@ def main() -> None:
     import uvicorn
 
     args = parse_args()
-    uvicorn.run(app, host=args.host, port=args.port)
+    # 检测调试模式
+    is_debug = "pydevd" in sys.modules or "PYCHARM_HOSTED" in os.environ
+
+    print(f"🚀 Starting Milvus Service on {args.host}:{args.port}")
+
+    if is_debug:
+        print("🔧 Debug mode detected")
+        config = uvicorn.Config(app, host=args.host, port=args.port, reload=True)
+        server = uvicorn.Server(config)
+        import asyncio
+
+        asyncio.run(server.serve())
+    else:
+        uvicorn.run(app, host=args.host, port=args.port, reload=True)
 
 
 if __name__ == "__main__":
