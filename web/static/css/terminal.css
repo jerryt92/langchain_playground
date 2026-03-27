@@ -1,0 +1,69 @@
+.terminal-shell {
+  display: grid;
+  gap: 18px;
+  min-height: 100vh;
+}
+
+.terminal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(360px, 0.8fr);
+  gap: 18px;
+  min-height: calc(100vh - 150px);
+}
+
+.terminal-panel {
+  padding: 20px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+
+.env-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.terminal-host {
+  min-height: 540px;
+  border: 1px solid var(--input-border);
+  border-radius: 14px;
+  background: #0f172a;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.terminal-host .xterm {
+  height: 100%;
+}
+
+.terminal-host .xterm-viewport {
+  scrollbar-color: #334155 #0f172a;
+}
+
+.terminal-host .xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-host .xterm-viewport::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.terminal-host .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+.terminal-host .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+.header-copy {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .terminal-layout {
+    grid-template-columns: 1fr;
+  }
+}

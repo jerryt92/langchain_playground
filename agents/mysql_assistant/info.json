@@ -1,0 +1,5 @@
+{
+  "agent_id": "mysql_assistant",
+  "name": "MySQL Assistant",
+  "description": "基于 ChatOpenAI 的 MySQL 工具调用式智能体。"
+}

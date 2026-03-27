@@ -1,0 +1,94 @@
+.home-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.home-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+  gap: 18px;
+}
+
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.agent-card {
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  padding: 18px;
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.agent-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: var(--panel-shadow-hover);
+}
+
+.agent-chip {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.agent-card h3 {
+  margin: 0 0 10px;
+  font-size: 20px;
+}
+
+.agent-card p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.empty-state {
+  padding: 20px;
+  border: 1px dashed var(--panel-border);
+  border-radius: 18px;
+  color: var(--text-secondary);
+}
+
+.home-layout > .panel {
+  padding: 20px;
+}
+
+.env-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.env-block {
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.env-block-summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  user-select: none;
+}
+
+.env-block-body {
+  padding: 0 14px 14px;
+}
+
+@media (max-width: 1080px) {
+  .home-layout {
+    grid-template-columns: 1fr;
+  }
+}

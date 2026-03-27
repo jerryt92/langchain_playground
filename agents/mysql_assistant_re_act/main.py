@@ -11,6 +11,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 from langgraph.graph.state import CompiledStateGraph
 
 from agents.mysql_assistant_re_act.mysql_ops import MySQLConnectionConfig, MySQLOps
+from lib.agent_runtime import InteractiveAgentRuntime
 from lib.langchain_model import chat_anthropic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -162,10 +163,10 @@ def build_assistant() -> tuple[CompiledStateGraph, bool]:
 
 
 def run_one_question(
-        question: str,
-        agent: CompiledStateGraph,
-        conversation: list[BaseMessage],
-        print_model_output: bool,
+    question: str,
+    agent: CompiledStateGraph,
+    conversation: list[BaseMessage],
+    print_model_output: bool,
 ) -> list[BaseMessage]:
     input_messages = [*conversation, HumanMessage(content=question)]
 
@@ -185,10 +186,26 @@ def run_one_question(
     else:
         result = agent.invoke({"messages": input_messages})
         final_messages = result["messages"]
-
-    print("\n=== 最终回答 ===")
-    print(_extract_final_answer(final_messages))
     return final_messages
+
+
+class ReActAgentRuntime(InteractiveAgentRuntime):
+    def __init__(self, agent: CompiledStateGraph, print_model_output: bool):
+        self.agent = agent
+        self.print_model_output = print_model_output
+        self.conversation: list[BaseMessage] = []
+
+    def send_message(self, message: str) -> str:
+        self.conversation = run_one_question(
+            message,
+            self.agent,
+            self.conversation,
+            self.print_model_output,
+        )
+        return _extract_final_answer(self.conversation)
+
+    def reset(self) -> None:
+        self.conversation = []
 
 
 def parse_args() -> argparse.Namespace:
@@ -215,34 +232,21 @@ def main() -> int | None:
         return 1
 
     agent, print_model_output = runtime
-    conversation: list[BaseMessage] = []
+    interactive_runtime = ReActAgentRuntime(agent, print_model_output)
     args = parse_args()
     one_shot_question = " ".join(args.question).strip()
     if one_shot_question:
         try:
-            run_one_question(one_shot_question, agent, conversation, print_model_output)
+            return interactive_runtime.run_one_shot(one_shot_question)
         except Exception as exc:
             traceback.TracebackException.from_exception(exc).print()
             return 1
-        return 0
 
-    print("进入交互模式，输入 exit 退出，输入 clear 清空上下文。")
-    while True:
-        question = input("\n请输入问题 > ").strip()
-        if not question:
-            continue
-        if question.lower() in {"exit", "quit", "q"}:
-            print("已退出。")
-            return 0
-        if question.lower() in {"clear", "reset"}:
-            conversation = []
-            print("上下文已清空。")
-            continue
-
-        try:
-            conversation = run_one_question(question, agent, conversation, print_model_output)
-        except Exception as exc:
-            traceback.TracebackException.from_exception(exc).print()
+    try:
+        return interactive_runtime.run_interactive()
+    except Exception as exc:
+        traceback.TracebackException.from_exception(exc).print()
+        return 1
 
 
 if __name__ == "__main__":

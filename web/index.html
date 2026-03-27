@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Engine</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/home.css">
+</head>
+<body>
+  <main class="page-shell home-shell">
+    <header class="page-header panel">
+      <div>
+        <h1>Agent Scan</h1>
+        <p class="subtle-text">选择一个 agent 后，将直接进入它现有的终端交互入口。</p>
+      </div>
+    </header>
+
+    <section class="home-layout">
+      <section class="panel">
+        <div class="section-header">
+          <div>
+            <h2>Agents</h2>
+            <p class="subtle-text">扫描到的 agent 列表。</p>
+          </div>
+        </div>
+        <section id="agents" class="agent-grid" aria-live="polite"></section>
+      </section>
+
+      <section class="panel env-panel">
+        <details class="env-block">
+          <summary class="env-block-summary">根目录 .env（可编辑）</summary>
+          <div class="env-block-body">
+            <div class="section-header">
+              <div>
+                <h2>根目录 .env</h2>
+                <p class="subtle-text">编辑项目根目录下的 `.env`。</p>
+              </div>
+              <div class="toolbar-group">
+                <button id="root-env-refresh" class="button button-secondary" type="button">刷新</button>
+                <button id="root-env-save" class="button button-primary" type="button">保存</button>
+              </div>
+            </div>
+            <p id="root-env-status" class="status-text" aria-live="polite"></p>
+            <textarea id="root-env-editor" class="env-editor" spellcheck="false" placeholder="根目录 .env 内容会显示在这里"></textarea>
+          </div>
+        </details>
+
+        <details class="env-block">
+          <summary class="env-block-summary">根目录 .env.example（只读）</summary>
+          <div class="env-block-body">
+            <div class="section-header">
+              <div>
+                <h2>根目录 .env.example</h2>
+                <p class="subtle-text">用于参考的模板文件，只读展示。</p>
+              </div>
+              <div class="toolbar-group">
+                <button id="root-env-example-refresh" class="button button-secondary" type="button">刷新</button>
+              </div>
+            </div>
+            <p id="root-env-example-status" class="status-text" aria-live="polite"></p>
+            <textarea id="root-env-example-editor" class="env-editor" spellcheck="false" readonly placeholder="根目录 .env.example 内容会显示在这里"></textarea>
+          </div>
+        </details>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="/static/js/home.js"></script>
+</body>
+</html>

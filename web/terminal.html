@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Terminal</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/terminal.css">
+</head>
+<body>
+  <main class="page-shell terminal-shell">
+    <header class="page-header panel">
+      <div class="header-copy">
+        <h1 id="agent-title">Agent Terminal</h1>
+        <p id="agent-description" class="subtle-text">正在加载 agent 信息...</p>
+      </div>
+      <div class="toolbar-group">
+        <a class="button button-secondary" href="/">返回 Agent 列表</a>
+      </div>
+    </header>
+
+    <section class="terminal-layout">
+      <section class="panel terminal-panel">
+        <div class="section-header">
+          <div>
+            <h2>终端</h2>
+            <p class="subtle-text">直接透传到该 agent 的 `main.py`。</p>
+          </div>
+        </div>
+        <div id="terminal-host" class="terminal-host"></div>
+      </section>
+
+      <aside class="env-sidebar">
+        <details id="env-example-details" class="panel env-panel">
+          <summary class="env-summary">
+            <h2>.env.example</h2>
+            <span class="subtle-text">查看当前 agent 的配置模板（只读）</span>
+          </summary>
+          <div class="env-panel-body">
+            <p id="env-example-status" class="status-text" aria-live="polite"></p>
+            <textarea id="env-example-editor" class="env-editor env-editor-readonly" spellcheck="false" readonly placeholder="该 agent 没有 .env.example 文件"></textarea>
+          </div>
+        </details>
+
+        <details class="panel env-panel">
+          <summary class="env-summary">
+            <h2 id="agent-env-title">Agent .env</h2>
+            <span class="subtle-text">编辑当前 agent 目录下的 `.env`</span>
+          </summary>
+          <div class="env-panel-body">
+            <div class="toolbar-group env-toolbar">
+              <button id="agent-env-refresh" class="button button-secondary" type="button">刷新</button>
+              <button id="agent-env-save" class="button button-primary" type="button">保存</button>
+            </div>
+            <p id="agent-env-status" class="status-text" aria-live="polite"></p>
+            <textarea id="agent-env-editor" class="env-editor" spellcheck="false" placeholder="当前 agent 的 .env 内容会显示在这里"></textarea>
+          </div>
+        </details>
+      </aside>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+  <script type="module" src="/static/js/terminal.js"></script>
+</body>
+</html>

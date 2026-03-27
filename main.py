@@ -2,40 +2,20 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 
-
-@dataclass(frozen=True)
-class AgentInfo:
-    name: str
-    entrypoint: Path
+from lib.agent_registry import AgentInfo, discover_agents
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 AGENTS_DIR = PROJECT_ROOT / "agents"
 
 
-def discover_agents() -> list[AgentInfo]:
-    if not AGENTS_DIR.exists():
-        return []
-
-    agents: list[AgentInfo] = []
-    for child in sorted(AGENTS_DIR.iterdir(), key=lambda item: item.name.lower()):
-        if not child.is_dir():
-            continue
-
-        entrypoint = child / "main.py"
-        if entrypoint.is_file():
-            agents.append(AgentInfo(name=child.name, entrypoint=entrypoint))
-
-    return agents
-
-
 def choose_agent(agents: list[AgentInfo]) -> AgentInfo | None:
     print("已注册的 agents：")
     for index, agent in enumerate(agents, start=1):
-        print(f"{index}. {agent.name}")
+        description_suffix = f" - {agent.description}" if agent.description else ""
+        print(f"{index}. {agent.name} ({agent.agent_id}){description_suffix}")
 
     while True:
         choice = input("\n请选择要运行的 agent（输入编号，q 退出）> ").strip()
@@ -63,9 +43,9 @@ def run_agent(agent: AgentInfo) -> int:
 
 
 def main() -> int:
-    agents = discover_agents()
+    agents = discover_agents(AGENTS_DIR)
     if not agents:
-        print("未发现可运行的 agent。请确保目录结构为 agents/<name>/main.py。", file=sys.stderr)
+        print("未发现可运行的 agent。请确保目录结构为 agents/<name>/main.py，并补充 info.json。", file=sys.stderr)
         return 1
 
     selected_agent = choose_agent(agents)

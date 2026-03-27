@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from agents.mysql_assistant.mysql_ops import MySQLConnectionConfig, MySQLOps
+from lib.agent_runtime import InteractiveAgentRuntime
 from lib.langchain_model import chat_open_ai
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -63,10 +64,15 @@ def build_assistant() -> MySQLAssistant:
     )
 
 
-def run_one_question(question: str, assistant: MySQLAssistant) -> None:
-    answer = assistant.ask(question)
-    print("\n=== 最终回答 ===")
-    print(answer)
+class MySQLAssistantRuntime(InteractiveAgentRuntime):
+    def __init__(self, assistant: MySQLAssistant):
+        self.assistant = assistant
+
+    def send_message(self, message: str) -> str:
+        return self.assistant.ask(message)
+
+    def reset(self) -> None:
+        self.assistant.reset_history()
 
 
 def parse_args() -> argparse.Namespace:
@@ -91,33 +97,22 @@ def main() -> int | None:
     my_sql_assistant = init()
     if not my_sql_assistant:
         return 1
+
+    runtime = MySQLAssistantRuntime(my_sql_assistant)
     args = parse_args()
     one_shot_question = " ".join(args.question).strip()
     if one_shot_question:
         try:
-            run_one_question(one_shot_question, my_sql_assistant)
+            return runtime.run_one_shot(one_shot_question)
         except Exception as exc:
             traceback.TracebackException.from_exception(exc).print()
             return 1
-        return 0
 
-    print("进入交互模式，输入 exit 退出，输入 clear 清空上下文。")
-    while True:
-        question = input("\n请输入问题 > ").strip()
-        if not question:
-            continue
-        if question.lower() in {"exit", "quit", "q"}:
-            print("已退出。")
-            return 0
-        if question.lower() in {"clear", "reset"}:
-            my_sql_assistant.reset_history()
-            print("上下文已清空。")
-            continue
-
-        try:
-            run_one_question(question, my_sql_assistant)
-        except Exception as exc:
-            traceback.TracebackException.from_exception(exc).print()
+    try:
+        return runtime.run_interactive()
+    except Exception as exc:
+        traceback.TracebackException.from_exception(exc).print()
+        return 1
 
 
 if __name__ == "__main__":
