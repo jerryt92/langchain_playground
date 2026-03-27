@@ -1,17 +1,17 @@
 import argparse
 import json
 import sys
+import traceback
 from pathlib import Path
 from typing import Any, Optional
 
 from langchain.agents import create_agent
 from langchain.agents.middleware import wrap_tool_call
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langgraph.graph.state import CompiledStateGraph
-from pydantic import SecretStr
 
 from agents.mysql_assistant_re_act.mysql_ops import MySQLConnectionConfig, MySQLOps
+from lib.langchain_model import chat_anthropic
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
@@ -129,9 +129,6 @@ def build_system_prompt() -> str:
 
 def build_assistant() -> tuple[CompiledStateGraph, bool]:
     env = load_env_config(PROJECT_ROOT, AGENT_DIR)
-    anthropic_api_key = env.get("ANTHROPIC_API_KEY", "").strip()
-    anthropic_base_url = env.get("ANTHROPIC_BASE_URL", "").strip() or None
-    anthropic_api_model = env.get("ANTHROPIC_API_MODEL", "").strip()
     allow_write = _parse_bool(env.get("ALLOW_WRITE"), default=False)
     include_tables = _parse_csv(env.get("INCLUDE_TABLES"))
     print_model_output = _parse_bool(env.get("PRINT_MODEL_OUTPUT"), default=False)
@@ -155,17 +152,7 @@ def build_assistant() -> tuple[CompiledStateGraph, bool]:
     # 这里会创建一个 ReAct 模式的 agent （需要使用支持深度思考的模型）
     # 由于阿里云百炼平台的OpenAI接口是通过非标准的方式返回的深度思考内容，而Anthropic接口则遵循了标准的深度思考实现，因此需要使用Anthropic接口
     agent = create_agent(
-        model=ChatAnthropic(
-            api_key=SecretStr(anthropic_api_key),
-            base_url=anthropic_base_url,
-            model_name=anthropic_api_model,
-            temperature=0.3,
-            max_tokens_to_sample=32768,
-            thinking={
-                "type": "enabled",
-                "budget_tokens": 1024
-            },
-        ),
+        model=chat_anthropic,
         tools=build_tools(),
         system_prompt=build_system_prompt(),
         middleware=[handle_tool_errors],
@@ -235,7 +222,7 @@ def main() -> int | None:
         try:
             run_one_question(one_shot_question, agent, conversation, print_model_output)
         except Exception as exc:
-            print(f"[执行失败] {exc}", file=sys.stderr)
+            traceback.TracebackException.from_exception(exc).print()
             return 1
         return 0
 
@@ -255,7 +242,7 @@ def main() -> int | None:
         try:
             conversation = run_one_question(question, agent, conversation, print_model_output)
         except Exception as exc:
-            print(f"[执行失败] {exc}")
+            traceback.TracebackException.from_exception(exc).print()
 
 
 if __name__ == "__main__":

@@ -1,12 +1,11 @@
 import argparse
 import sys
+import traceback
 from pathlib import Path
 from typing import Optional
 
-from langchain_openai import ChatOpenAI
-from pydantic import SecretStr
-
 from agents.mysql_assistant.mysql_ops import MySQLConnectionConfig, MySQLOps
+from lib.langchain_model import chat_open_ai
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
@@ -34,9 +33,6 @@ def _parse_csv(value: Optional[str]) -> list[str]:
 
 def build_assistant() -> MySQLAssistant:
     env = load_env_config(PROJECT_ROOT, AGENT_DIR)
-    openai_api_key = env.get("OPENAI_API_KEY", "").strip()
-    openai_base_url = env.get("OPENAI_BASE_URL", "").strip() or None
-    openai_model = env.get("OPENAI_MODEL", "gpt-4o-mini").strip()
     allow_write = _parse_bool(env.get("ALLOW_WRITE"), default=False)
     include_tables = _parse_csv(env.get("INCLUDE_TABLES"))
     print_model_output = _parse_bool(env.get("PRINT_MODEL_OUTPUT"), default=False)
@@ -55,8 +51,6 @@ def build_assistant() -> MySQLAssistant:
         read_timeout=int(env.get("MYSQL_READ_TIMEOUT", "30")),
         write_timeout=int(env.get("MYSQL_WRITE_TIMEOUT", "30"))
     )
-    if not openai_api_key:
-        raise ValueError("缺少环境变量 OPENAI_API_KEY。请在项目根目录 .env 中配置模型密钥。")
     mysql_ops.ops = MySQLOps(
         mysql_connection_config=mysql_connection_config,
         allow_write=allow_write,
@@ -64,16 +58,7 @@ def build_assistant() -> MySQLAssistant:
     )
     return MySQLAssistant(
         tools=build_tools(),
-        llm_chat=ChatOpenAI(
-            model=openai_model,
-            api_key=SecretStr(openai_api_key) if openai_api_key else None,
-            base_url=openai_base_url,
-            temperature=0.3,
-            max_tokens=32768,
-            extra_body={
-                "enable_thinking": True
-            }
-        ),
+        llm_chat=chat_open_ai,
         print_model_output=print_model_output
     )
 
@@ -112,7 +97,7 @@ def main() -> int | None:
         try:
             run_one_question(one_shot_question, my_sql_assistant)
         except Exception as exc:
-            print(f"[执行失败] {exc}", file=sys.stderr)
+            traceback.TracebackException.from_exception(exc).print()
             return 1
         return 0
 
@@ -132,7 +117,7 @@ def main() -> int | None:
         try:
             run_one_question(question, my_sql_assistant)
         except Exception as exc:
-            print(f"[执行失败] {exc}")
+            traceback.TracebackException.from_exception(exc).print()
 
 
 if __name__ == "__main__":
