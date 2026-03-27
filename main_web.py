@@ -236,7 +236,7 @@ def main() -> None:
 
         asyncio.run(server.serve())
     else:
-        uvicorn.run(app, host=args.host, port=args.port, reload=True)
+        uvicorn.run(app, host=args.host, port=args.port, reload=False)
 
 
 if __name__ == "__main__":
