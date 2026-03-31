@@ -1,6 +1,6 @@
 {
   "agent_id": "mysql_assistant_re_act",
-  "name": "MySQL Assistant ReAct",
+  "name": "MySQL助手（ReAct）",
   "description": "基于 create_agent 和 ChatAnthropic 的 MySQL ReAct 智能体。",
   "author": "tjl"
 }

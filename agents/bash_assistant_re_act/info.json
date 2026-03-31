@@ -1,0 +1,6 @@
+{
+  "agent_id": "command_line_assistant_re_act",
+  "name": "命令行助手",
+  "description": "基于 create_agent 和 ChatAnthropic 的跨平台命令行 ReAct 智能体，支持 macOS、Linux、Windows。",
+  "author": "tjl"
+}
